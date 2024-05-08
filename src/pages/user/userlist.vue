@@ -43,8 +43,8 @@
       <div class="bd-card-footer pl-12px pr-12px mb-12px flex items-center justify-between">
         <div></div>
         <el-pagination
-          v-model:current-page="queryFrom.page_index"
-          v-model:page-size="queryFrom.page_size"
+          v-model:current-page="queryFrom.pagination.pageNumber"
+          v-model:page-size="queryFrom.pagination.showNumber"
           :page-sizes="[15, 20, 30, 50, 100]"
           :background="true"
           layout="total, sizes, prev, pager, next, jumper"
@@ -80,13 +80,13 @@ const userStore = useUserStore();
  */
 const column = reactive<Column.ColumnOptions[]>([
   {
-    prop: 'name',
+    prop: 'nickname',
     label: '昵称',
     fixed: 'left',
     width: 140
   },
   {
-    prop: 'phone',
+    prop: 'phoneNumber',
     label: '手机号',
     fixed: 'left',
     width: 120
@@ -97,7 +97,7 @@ const column = reactive<Column.ColumnOptions[]>([
     width: 120
   },
   {
-    prop: 'avatar',
+    prop: 'faceURL',
     label: '头像',
     align: 'center',
     width: 80,
@@ -114,7 +114,7 @@ const column = reactive<Column.ColumnOptions[]>([
     }
   },
   {
-    prop: 'uid',
+    prop: 'userID',
     label: '用户ID',
     minWidth: 300
   },
@@ -132,11 +132,11 @@ const column = reactive<Column.ColumnOptions[]>([
     width: 180
   },
   {
-    prop: 'sex',
+    prop: 'gender',
     label: '性别',
     width: 60,
     formatter(row: any) {
-      return row.sex === 1 ? '男' : '女';
+      return row.gender === 1 ? '男' : '女';
     }
   },
   {
@@ -215,28 +215,31 @@ const total = ref(0);
 // 查询
 const queryFrom = reactive({
   keyword: '',
-  page_size: 15,
-  page_index: 1
+  normal: 1,
+  pagination: {
+    pageNumber: 1,
+    showNumber: 10
+  }
 });
 
 const getUserList = () => {
   loadTable.value = true;
   userListGet(queryFrom).then((res: any) => {
     loadTable.value = false;
-    tableData.value = res.list;
-    total.value = res.count;
+    tableData.value = res.data.users;
+    total.value = res.data.total;
   });
 };
 
 // 分页page-size
 const onSizeChange = (size: number) => {
-  queryFrom.page_size = size;
+  queryFrom.pagination.showNumber = size;
   getUserList();
 };
 
 // 分页page-size
 const onCurrentChange = (current: number) => {
-  queryFrom.page_index = current;
+  queryFrom.pagination.pageNumber = current;
   getUserList();
 };
 

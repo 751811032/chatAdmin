@@ -1,3 +1,4 @@
+import request1 from '@/utils/axios1';
 import request from '@/utils/axios';
 
 // 添加用户
@@ -11,19 +12,19 @@ export function userAddPost(data: any) {
 
 // 用户列表
 export function userListGet(params: any) {
-  return request({
+  return request1({
     url: '/user/search/full',
     method: 'post',
-    params
+    data: params
   });
 }
 
 // 封禁用户列表
 export function userDisablelistGet(params: any) {
   return request({
-    url: '/manager/user/disablelist',
-    method: 'get',
-    params
+    url: '/block/search',
+    method: 'post',
+    data: params
   });
 }
 
@@ -39,8 +40,8 @@ export function userFriendsGet(params: any) {
 // 黑名单列表
 export function userBlacklistGet(params: any) {
   return request({
-    url: 'manager/user/blacklist',
-    method: 'get',
+    url: 'block/search',
+    method: 'post',
     params
   });
 }

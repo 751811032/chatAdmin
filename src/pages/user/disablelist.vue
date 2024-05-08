@@ -42,8 +42,8 @@
       <div class="bd-card-footer pl-12px pr-12px mb-12px flex items-center justify-between">
         <div></div>
         <el-pagination
-          v-model:current-page="queryFrom.page_index"
-          v-model:page-size="queryFrom.page_size"
+          v-model:current-page="queryFrom.pagination.pageNumber"
+          v-model:page-size="queryFrom.pagination.showNumber"
           :page-sizes="[15, 20, 30, 50, 100]"
           :background="true"
           layout="total, sizes, prev, pager, next, jumper"
@@ -152,8 +152,10 @@ const total = ref(0);
 // 查询
 const queryFrom = reactive({
   keyword: '',
-  page_size: 15,
-  page_index: 1
+  pagination: {
+    pageNumber: 1,
+    showNumber: 10
+  }
 });
 
 const getUserList = () => {
@@ -167,13 +169,13 @@ const getUserList = () => {
 
 // 分页page-size
 const onSizeChange = (size: number) => {
-  queryFrom.page_size = size;
+  queryFrom.pagination.showNumber = size;
   getUserList();
 };
 
 // 分页page-size
 const onCurrentChange = (current: number) => {
-  queryFrom.page_index = current;
+  queryFrom.pagination.pageNumber = current;
   getUserList();
 };
 
