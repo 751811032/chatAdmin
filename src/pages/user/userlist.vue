@@ -71,7 +71,7 @@ import { ElButton, ElSpace, ElAvatar, ElDropdown, ElDropdownMenu, ElDropdownItem
 import { useUserStore } from '@/stores/modules/user';
 import { BU_DOU_CONFIG } from '@/config';
 // API 接口
-import { userListGet, userLiftbanPut } from '@/api/user';
+import { userListGet, userBlockAdd, userOnlineInfo, userOfflineReq } from '@/api/user';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -89,11 +89,6 @@ const column = reactive<Column.ColumnOptions[]>([
     prop: 'phoneNumber',
     label: '手机号',
     fixed: 'left',
-    width: 120
-  },
-  {
-    prop: 'username',
-    label: '用户',
     width: 120
   },
   {
@@ -116,56 +111,33 @@ const column = reactive<Column.ColumnOptions[]>([
   {
     prop: 'userID',
     label: '用户ID',
-    minWidth: 300
+    minWidth: 150
   },
-  {
-    prop: 'status',
-    label: '用户状态',
-    width: 86,
-    formatter(row: any) {
-      return row.status === 1 ? '正常' : '封禁';
-    }
-  },
-  {
-    prop: 'short_no',
-    label: '悟空号',
-    width: 180
-  },
-  {
-    prop: 'gender',
-    label: '性别',
-    width: 60,
-    formatter(row: any) {
-      return row.gender === 1 ? '男' : '女';
-    }
-  },
-  {
-    prop: 'register_time',
-    label: '注册时间',
-    width: 170
-  },
-  {
-    prop: 'device_name',
-    label: '登录设备',
-    width: 140
-  },
-  {
-    prop: 'device_model',
-    label: '登录设备型号',
-    width: 140
-  },
+  // {
+  //   prop: 'status',
+  //   label: '用户状态',
+  //   width: 86,
+  //   formatter(row: any) {
+  //     return row.status === 1 ? '正常' : '封禁';
+  //   }
+  // },
   {
     prop: 'online',
     label: '在线状态',
     width: 90,
     formatter(row: any) {
-      return row.online === 1 ? '在线' : '离线';
+      if (row.status === 'online') {
+        if (row.singlePlatformToken) {
+          let platform = '';
+          for (let i = 0; i < row.singlePlatformToken.length; i++) {
+            platform += row.singlePlatformToken[i].platform + '/';
+          }
+          return platform + '在线';
+        }
+      } else {
+        return '离线';
+      }
     }
-  },
-  {
-    prop: 'last_online_time',
-    label: '最后离线时间',
-    width: 150
   },
   {
     prop: 'operation',
@@ -193,9 +165,13 @@ const column = reactive<Column.ColumnOptions[]>([
                       <i-bd-personal-privacy class={'mr-4px'} />
                       黑名单列表
                     </ElDropdownItem>
+                    <ElDropdownItem onClick={() => userOffline(scope.row)}>
+                      <i-bd-info class={'mr-4px'} />
+                      强制下线
+                    </ElDropdownItem>
                     <ElDropdownItem onClick={() => onUseLiftban(scope.row)}>
                       <i-bd-info class={'mr-4px'} />
-                      {scope.row.status === 1 ? '封禁' : '解禁'}
+                      {'封禁'}
                     </ElDropdownItem>
                   </ElDropdownMenu>
                 );
@@ -226,8 +202,26 @@ const getUserList = () => {
   loadTable.value = true;
   userListGet(queryFrom).then((res: any) => {
     loadTable.value = false;
-    tableData.value = res.data.users;
+    let userList = res.data.users;
+    // tableData.value = userList;
     total.value = res.data.total;
+    let userIDs = [];
+    for (let i = 0; i < userList.length; i++) {
+      userIDs.push(userList[i].userID);
+    }
+    let info = { userIDs: userIDs };
+    userOnlineInfo(info).then((res: any) => {
+      let arr = res.data;
+      for (let i = 0; i < userList.length; i++) {
+        for (let j = 0; j < arr.length; j++) {
+          if (userList[i].userID === arr[j].userID) {
+            userList[i].status = arr[j].status;
+            userList[i].singlePlatformToken = arr[j].singlePlatformToken;
+          }
+        }
+      }
+      tableData.value = userList;
+    });
   });
 };
 
@@ -252,6 +246,7 @@ const sendInfo = ref({
   sender: '',
   senderName: ''
 });
+
 const onSand = (item: any) => {
   sendValue.value = true;
   sendInfo.value = {
@@ -285,10 +280,10 @@ const onUseBlackList = (item: any) => {
   });
 };
 
-// 用户封禁/解封操作
+// 用户封禁
 const onUseLiftban = (item: any) => {
-  const text = item.status == 1 ? '封禁' : '解禁';
-  ElMessageBox.confirm(`确定要${text}用户${item.name} 吗`, `${text}用户`, {
+  const text = '封禁';
+  ElMessageBox.confirm(`确定要${text}用户${item.nickname} 吗`, `${text}用户`, {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     closeOnClickModal: false,
@@ -296,10 +291,10 @@ const onUseLiftban = (item: any) => {
   })
     .then(() => {
       const fromLiftban = {
-        uid: item.uid,
-        status: item.status == 1 ? 0 : 1
+        userID: item.userID
       };
-      userLiftbanPut(fromLiftban)
+      console.log('fromLiftban', fromLiftban);
+      userBlockAdd(fromLiftban)
         .then((_res: any) => {
           getUserList();
           ElMessage({
@@ -308,9 +303,7 @@ const onUseLiftban = (item: any) => {
           });
         })
         .catch(err => {
-          if (err.status == 400) {
-            ElMessage.error(err.msg);
-          }
+          ElMessage.error(err.msg);
         });
     })
     .catch(() => {
@@ -321,6 +314,60 @@ const onUseLiftban = (item: any) => {
     });
 };
 
+const platformMap = {
+  iOS: 1,
+  Android: 2,
+  Windows: 3,
+  OSX: 4,
+  WEB: 5,
+  小程序: 6,
+  linux: 7,
+  APad: 8,
+  IPad: 9,
+  Admin: 10
+};
+// 用户踢线
+const userOffline = (item: any) => {
+  const text = '强制下线';
+  if (item.status != 'online') {
+    return;
+  }
+  ElMessageBox.confirm(`确定要${text}用户${item.nickname} 吗`, `${text}用户`, {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    closeOnClickModal: false,
+    type: 'warning'
+  })
+    .then(() => {
+      for (let i = 0; i < item.singlePlatformToken.length; i++) {
+        console.log('platformID', item.singlePlatformToken[i].platform);
+        let platformID = platformMap[item.singlePlatformToken[i].platform];
+        console.log('platformID', platformID);
+        const fromLiftban = {
+          userID: item.userID,
+          platformID: platformID
+        };
+        console.log('fromLiftban', fromLiftban);
+        userOfflineReq(fromLiftban)
+          .then((_res: any) => {
+            getUserList();
+            ElMessage({
+              type: 'success',
+              message: `${text}用户成功！`
+            });
+          })
+          .catch(err => {
+            ElMessage.error(err.msg);
+          });
+      }
+    })
+    .catch(() => {
+      ElMessage({
+        type: 'info',
+        message: '取消成功！'
+      });
+    });
+};
 // 初始化
 onMounted(() => {
   getUserList();

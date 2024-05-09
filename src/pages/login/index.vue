@@ -112,6 +112,7 @@ const onLoginClick = async (formEl: FormInstance | undefined) => {
           console.log('res:', res);
           loginButLoading.value = false;
           userStore.setToken(res.data.adminToken);
+          userStore.setImToken(res.data.imToken);
           userStore.setUserInfo(res.data);
           router.push(HOME_URL);
           ElMessage.success('登录成功');

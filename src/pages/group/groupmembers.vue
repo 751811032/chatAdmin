@@ -45,8 +45,8 @@
       <div class="bd-card-footer pl-12px pr-12px mb-12px flex items-center justify-between">
         <div></div>
         <el-pagination
-          v-model:current-page="queryFrom.page_index"
-          v-model:page-size="queryFrom.page_size"
+          v-model:current-page="queryFrom.pagination.pageNumber"
+          v-model:page-size="queryFrom.pagination.showNumber"
           :page-sizes="[15, 20, 30, 50, 100]"
           :background="true"
           layout="total, sizes, prev, pager, next, jumper"
@@ -56,8 +56,7 @@
         />
       </div>
     </div>
-    <!-- 发消息 -->
-    <bd-send-msg v-model:value="sendValue" v-bind="sendInfo" />
+    <group-role-set-dialog v-model:value="sendValue" v-bind="dialogInfo" />
   </bd-page>
 </template>
 
@@ -73,6 +72,7 @@ import { ElButton, ElSpace, ElText, ElAvatar, ElMessage, ElMessageBox } from 'el
 import { BU_DOU_CONFIG } from '@/config';
 // API 接口
 import { groupGroupmembersGet, groupGroupmembersDelete } from '@/api/group';
+import GroupRoleSetDialog from '@/pages/group/groupRoleSetDialog.vue';
 
 const route = useRoute();
 /**
@@ -80,13 +80,13 @@ const route = useRoute();
  */
 const column = reactive<Column.ColumnOptions[]>([
   {
-    prop: 'name',
+    prop: 'nickname',
     label: '用户昵称',
     fixed: 'left',
-    width: 200
+    width: 100
   },
   {
-    prop: 'avatar',
+    prop: 'faceURL',
     label: '用户头像',
     align: 'center',
     width: 100,
@@ -103,39 +103,50 @@ const column = reactive<Column.ColumnOptions[]>([
     }
   },
   {
-    prop: 'uid',
+    prop: 'userID',
     label: '用户ID',
     fixed: 'left',
-    width: 320
+    width: 120
   },
   {
-    prop: 'status',
+    prop: 'roleLevel',
     label: '成员角色',
-    width: 120,
+    width: 80,
     render: (scope: any) => {
+      // 100：群主、60：管理员、20：普通成员
       let text = '成员';
       let type: any = 'primary';
       // 群主
-      if (scope?.row['role'] == 1) {
+      if (scope?.row['roleLevel'] == 100) {
         text = '群主';
         type = 'success';
       }
       // 管理员
-      if (scope?.row['role'] == 2) {
+      if (scope?.row['roleLevel'] == 60) {
         text = '管理员';
         type = 'warning';
       }
       return <ElText type={type}>{text}</ElText>;
     }
   },
+  // {
+  //   prop: 'remark',
+  //   label: '群内备注'
+  // },
   {
-    prop: 'remark',
-    label: '群内备注'
-  },
-  {
-    prop: 'created_at',
+    prop: 'joinTime',
     label: '入群时间',
-    width: 180
+    width: 150,
+    formatter(row: any) {
+      var date = new Date(row.joinTime);
+      var Y = date.getFullYear() + '-';
+      var M = (date.getMonth() + 1 < 10 ? '0' + (date.getMonth() + 1) : date.getMonth() + 1) + '-';
+      var D = date.getDate() + ' ';
+      var h = date.getHours() + ':';
+      var m = date.getMinutes() + ':';
+      var s = date.getSeconds();
+      return Y + M + D + h + m + s;
+    }
   },
   {
     prop: 'operation',
@@ -147,7 +158,7 @@ const column = reactive<Column.ColumnOptions[]>([
       return (
         <ElSpace>
           <ElButton type="primary" onClick={() => onSand(scope.row)}>
-            发消息
+            设置身份
           </ElButton>
           {scope?.row['role'] != 1 && (
             <ElButton type="danger" onClick={() => onDel(scope.row)}>
@@ -163,76 +174,70 @@ const tableData = ref<any[]>([]);
 const loadTable = ref<boolean>(false);
 // 分页
 const total = ref(0);
+const sendValue = ref<boolean>(false);
 
 // 查询
 const queryFrom = reactive({
-  keyword: '',
-  page_size: 15,
-  page_index: 1
+  groupID: route.query.groupID,
+  pagination: {
+    pageNumber: 1,
+    showNumber: 10
+  }
 });
 
 const getUserList = () => {
   loadTable.value = true;
-  groupGroupmembersGet(queryFrom, route.query.groupNo as string).then((res: any) => {
+  groupGroupmembersGet(queryFrom).then((res: any) => {
     loadTable.value = false;
-    tableData.value = res.list;
-    total.value = res.count;
+    tableData.value = res.data.members;
+    total.value = res.data.total;
   });
 };
 
 // 分页page-size
 const onSizeChange = (size: number) => {
-  queryFrom.page_size = size;
+  queryFrom.pagination.showNumber = size;
   getUserList();
 };
 
 // 分页page-size
 const onCurrentChange = (current: number) => {
-  queryFrom.page_index = current;
+  queryFrom.pagination.pageNumber = current;
   getUserList();
 };
 
-// 发送信息
-const sendValue = ref<boolean>(false);
-const sendInfo = ref({
-  receivederChannelType: 1,
-  receiveder: '',
-  receivederName: '',
-  sender: '',
-  senderName: ''
-});
-const onSand = (item: any) => {
-  sendValue.value = true;
-  sendInfo.value = {
-    receivederChannelType: 2,
-    receiveder: route.query.groupNo as string,
-    receivederName: route.query.name as string,
-    sender: item.uid,
-    senderName: item.name
-  };
-};
-
 const onGroupGroupmembersDelete = (item: any) => {
-  const uid: string[] = [];
-  uid.push(item.uid);
+  let userIds = [];
+  userIds.push(item.userID);
   const formData = {
-    uid
+    groupID: route.query.groupID,
+    kickedUserIDs: userIds
   };
-  groupGroupmembersDelete(formData, route.query.groupNo as string)
+  groupGroupmembersDelete(formData)
     .then((res: any) => {
-      if (res.status == 200) {
-        getUserList();
-        ElMessage({
-          type: 'success',
-          message: '移除成功！'
-        });
-      }
+      getUserList();
+      ElMessage({
+        type: 'success',
+        message: '移除成功！'
+      });
     })
     .catch(err => {
-      if (err.status == 400) {
-        ElMessage.error(err.msg);
-      }
+      ElMessage.error(err.msg);
     });
+};
+
+const dialogInfo = ref({
+  groupID: '',
+  userID: ''
+});
+const onSand = (item: any) => {
+  console.log('onSand:', item);
+  sendValue.value = true;
+  dialogInfo.value = {
+    groupID: item.groupID,
+    userID: item.userID,
+    roleLevel: item.roleLevel
+  };
 };
 
 // 删除

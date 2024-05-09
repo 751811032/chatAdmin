@@ -12,8 +12,9 @@ const axiosInstance: AxiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   config => {
     // 添加token
-    if (userStore.token) {
-      (config as any).headers['token'] = userStore.token;
+    console.log('userStore.imToken:', userStore.imToken);
+    if (userStore.imToken) {
+      (config as any).headers['token'] = userStore.imToken;
     }
     (config as any).headers['Operationid'] = 'dbdcf835-05fb-4607-b9a5-79636aea39f8';
 

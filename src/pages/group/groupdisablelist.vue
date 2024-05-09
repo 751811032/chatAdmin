@@ -180,9 +180,7 @@ const onLiftban = (item: any) => {
           });
         })
         .catch(err => {
-          if (err.status == 400) {
             ElMessage.error(err.msg);
-          }
         });
     })
     .catch(() => {

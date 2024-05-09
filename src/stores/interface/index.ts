@@ -26,6 +26,7 @@ export interface GlobalState {
 /* UserState */
 export interface UserState {
   token: string;
+  imToken: string;
   userInfo: {
     name: string;
     uid: string;

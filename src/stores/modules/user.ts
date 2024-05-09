@@ -6,6 +6,7 @@ export const useUserStore = defineStore({
   id: 'budou-user',
   state: (): UserState => ({
     token: '',
+    imToken: '',
     userInfo: { name: '您好，超管', uid: '' }
   }),
   getters: {},
@@ -13,6 +14,9 @@ export const useUserStore = defineStore({
     // Set Token
     setToken(token: string) {
       this.token = token;
+    },
+    setImToken(token: string) {
+      this.imToken = token;
     },
     // Set setUserInfo
     setUserInfo(userInfo: UserState['userInfo']) {

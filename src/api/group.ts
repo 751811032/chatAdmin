@@ -1,11 +1,11 @@
-import request from '@/utils/axios';
+import request from '@/utils/axios2';
 
 // 群列表
 export function groupListGet(params: any) {
   return request({
-    url: '/manager/group/list',
-    method: 'get',
-    params
+    url: '/group/get_groups',
+    method: 'post',
+    data: params
   });
 }
 
@@ -19,20 +19,20 @@ export function groupDisablelistGet(params: any) {
 }
 
 // 群成员
-export function groupGroupmembersGet(params: any, groupNo: string) {
+export function groupGroupmembersGet(params: any) {
   return request({
-    url: `/manager/groups/${groupNo}/members`,
-    method: 'get',
-    params
+    url: `/group/get_group_member_list`,
+    method: 'post',
+    data: params
   });
 }
 
 // 移除成员
-export function groupGroupmembersDelete(data: any, groupNo: string) {
+export function groupGroupmembersDelete(params: any) {
   return request({
-    url: `/manager/groups/${groupNo}/members`,
-    method: 'delete',
-    data
+    url: `/group/kick_group`,
+    method: 'post',
+    data: params
   });
 }
 
@@ -58,5 +58,14 @@ export function groupLiftbanPut(params: any) {
   return request({
     url: `/manager/group/liftban/${params.groupNo}/${params.status}`,
     method: 'put'
+  });
+}
+
+// 设置群成员身份
+export function groupSetMemberRole(params: any) {
+  return request({
+    url: '/group/set_group_member_info',
+    method: 'post',
+    data: params
   });
 }

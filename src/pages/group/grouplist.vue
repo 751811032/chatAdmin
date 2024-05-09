@@ -9,7 +9,7 @@
         <div class="flex items-center h-50px">
           <el-form inline>
             <el-form-item class="mb-0 !mr-16px">
-              <el-input v-model="queryFrom.keyword" placeholder="群名称/群编号" clearable />
+              <el-input v-model="queryFrom.groupID" placeholder="群名称/群编号" clearable />
             </el-form-item>
             <el-form-item class="mb-0 !mr-0">
               <el-button type="primary" @click="getTableList">查询</el-button>
@@ -24,7 +24,7 @@
               <i-bd-setting class="cursor-pointer" size="16" />
             </template>
           </el-table-column>
-          <el-table-column v-for="item in column" v-bind="item" :key="item.prop">
+          <el-table-column v-for="item in column" v-bind="item" :key="'groupInfo.' + item.prop">
             <template #default="scope">
               <template v-if="item.render">
                 <component :is="item.render" :row="scope.row"> </component>
@@ -42,8 +42,8 @@
       <div class="bd-card-footer pl-12px pr-12px mb-12px flex items-center justify-between">
         <div></div>
         <el-pagination
-          v-model:current-page="queryFrom.page_index"
-          v-model:page-size="queryFrom.page_size"
+          v-model:current-page="queryFrom.pagination.pageNumber"
+          v-model:page-size="queryFrom.pagination.showNumber"
           :page-sizes="[15, 20, 30, 50, 100]"
           :background="true"
           layout="total, sizes, prev, pager, next, jumper"
@@ -77,19 +77,19 @@ const router = useRouter();
  */
 const column = reactive<Column.ColumnOptions[]>([
   {
-    prop: 'name',
+    prop: 'groupName',
     label: '群名称',
     fixed: 'left',
     width: 200
   },
   {
-    prop: 'group_no',
+    prop: 'groupID',
     label: '群编号',
     fixed: 'left',
     width: 200
   },
   {
-    prop: 'avatar',
+    prop: 'faceURL',
     label: '群头像',
     align: 'center',
     width: 100,
@@ -110,26 +110,40 @@ const column = reactive<Column.ColumnOptions[]>([
     label: '群状态',
     width: 80,
     formatter(row: any) {
-      return row.status === 1 ? '正常' : '封禁中';
+      return row.status === 0
+        ? '正常'
+        : row.status === 1
+        ? '封禁中'
+        : row.status === 2
+        ? '被解散'
+        : row.status === 3
+        ? '处于全体禁言状态'
+        : '其他';
     }
   },
   {
-    prop: 'member_count',
+    prop: 'memberCount',
     label: '群人数',
     width: 80
   },
   {
-    prop: 'create_name',
-    label: '群主名称'
-  },
-  {
-    prop: 'creator',
+    prop: 'ownerUserID',
     label: '群主ID'
   },
   {
-    prop: 'create_at',
+    prop: 'createTime',
     label: '创建时间',
-    width: 180
+    width: 180,
+    formatter(row: any) {
+      var date = new Date(row.createTime);
+      var Y = date.getFullYear() + '-';
+      var M = (date.getMonth() + 1 < 10 ? '0' + (date.getMonth()+1) : date.getMonth()+1) + '-';
+      var D = date.getDate() + ' ';
+      var h = date.getHours() + ':';
+      var m = date.getMinutes() + ':';
+      var s = date.getSeconds();
+      return Y + M + D + h + m + s;
+    }
   },
   {
     prop: 'operation',
@@ -186,29 +200,38 @@ const total = ref(0);
 
 // 查询
 const queryFrom = reactive({
+  groupID: '',
+  pagination: {
+    pageNumber: 1,
+    showNumber: 10
+  },
   keyword: '',
-  page_size: 15,
-  page_index: 1
+  current: 1,
+  pageSize: 10
 });
 
 const getTableList = () => {
   loadTable.value = true;
   groupListGet(queryFrom).then((res: any) => {
     loadTable.value = false;
-    tableData.value = res.list;
-    total.value = res.count;
+    let arr = [];
+    for (let i = 0; i < res.data.groups.length; i++) {
+      arr.push(res.data.groups[i].groupInfo);
+    }
+    tableData.value = arr;
+    total.value = res.data.total;
   });
 };
 
 // 分页page-size
 const onSizeChange = (size: number) => {
-  queryFrom.page_size = size;
+  queryFrom.pagination.showNumber = size;
   getTableList();
 };
 
 // 分页page-size
 const onCurrentChange = (current: number) => {
-  queryFrom.page_index = current;
+  queryFrom.pagination.pageNumber = current;
   getTableList();
 };
 
@@ -237,8 +260,8 @@ const onGroupdisablelist = (item: any) => {
   router.push({
     path: '/group/groupmembers',
     query: {
-      groupNo: item.group_no,
-      name: item.name
+      groupID: item.groupID,
+      name: item.groupName
     }
   });
 };
@@ -288,9 +311,7 @@ const onForbidden = (item: any) => {
           });
         })
         .catch(err => {
-          if (err.status == 400) {
             ElMessage.error(err.msg);
-          }
         });
     })
     .catch(() => {
@@ -324,9 +345,7 @@ const onLiftban = (item: any) => {
           });
         })
         .catch(err => {
-          if (err.status == 400) {
             ElMessage.error(err.msg);
-          }
         });
     })
     .catch(() => {

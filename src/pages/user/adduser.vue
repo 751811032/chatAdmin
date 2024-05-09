@@ -12,21 +12,21 @@
         <div class="w-540px">
           <el-form :model="formData" label-width="120px">
             <el-form-item label="区号：">
-              <el-select v-model="formData.zone" class="!w-100%">
-                <el-option label="0086" value="0086" />
+              <el-select v-model="formData.areaCode" class="!w-100%">
+                <el-option label="855" value="855" />
               </el-select>
             </el-form-item>
             <el-form-item label="手机号：">
-              <el-input v-model="formData.phone" />
+              <el-input v-model="formData.phoneNumber" />
             </el-form-item>
             <el-form-item label="性别：">
-              <el-radio-group v-model="formData.sex">
+              <el-radio-group v-model="formData.gender">
                 <el-radio :label="1">男</el-radio>
                 <el-radio :label="0">女</el-radio>
               </el-radio-group>
             </el-form-item>
             <el-form-item label="用户昵称：">
-              <el-input v-model="formData.name" />
+              <el-input v-model="formData.nickname" />
             </el-form-item>
             <el-form-item label="登录密码：">
               <el-input v-model="formData.password" type="password" show-password />
@@ -43,7 +43,7 @@
 
 <route lang="yaml">
 meta:
-  title: 添加用户
+title: 添加用户
 </route>
 
 <script lang="ts" setup>
@@ -52,17 +52,36 @@ import { ElMessage } from 'element-plus';
 import { userAddPost } from '@/api/user';
 // 表单
 const formData = reactive({
-  name: '',
-  zone: '0086',
-  sex: 1,
-  phone: '',
-  password: ''
+  areaCode: '855',
+  birth: '',
+  deviceID: '',
+  gender: 1,
+  nickname: '',
+  password: '',
+  phoneNumber: '',
+  platform: 5,
+  verifyCode: '666666'
 });
-
+const user = reactive({
+  areaCode: '',
+  birth: 0,
+  faceURL: '',
+  gender: 0,
+  nickname: '',
+  password: '',
+  phoneNumber: ''
+});
 // 更新通用设置
 const loginButLoading = ref(false);
 const onSaveClick = () => {
   loginButLoading.value = true;
+  user.areaCode = formData.areaCode;
+  user.birth = 1798495958;
+  user.gender = formData.gender;
+  user.nickname = formData.nickname;
+  user.password = formData.password;
+  user.phoneNumber = formData.phoneNumber;
+  formData.user = user;
   userAddPost(formData)
     .then((_res: any) => {
       loginButLoading.value = false;
@@ -70,9 +89,7 @@ const onSaveClick = () => {
     })
     .catch(err => {
       loginButLoading.value = false;
-      if (err.status == 400) {
-        ElMessage.error(err.msg);
-      }
+      ElMessage.error(err.msg);
     });
 };
 </script>

@@ -66,25 +66,25 @@ meta:
 import { ElButton, ElSpace, ElAvatar, ElMessage, ElMessageBox } from 'element-plus';
 import { BU_DOU_CONFIG } from '@/config';
 // API 接口
-import { userDisablelistGet, userLiftbanPut } from '@/api/user';
+import { userDisablelistGet, userBlockDel } from '@/api/user';
 /**
  * 表格
  */
 const column = reactive([
   {
-    prop: 'name',
+    prop: 'nickname',
     label: '用户名',
     fixed: 'left',
     width: 140
   },
   {
-    prop: 'phone',
+    prop: 'phoneNumber',
     label: '手机号',
     fixed: 'left',
     width: 120
   },
   {
-    prop: 'avatar',
+    prop: 'faceURL',
     label: '头像',
     align: 'center',
     width: 80,
@@ -101,32 +101,38 @@ const column = reactive([
     }
   },
   {
-    prop: 'uid',
+    prop: 'userID',
     label: '用户ID',
-    minWidth: 300
+    minWidth: 150
   },
   {
-    prop: 'short_no',
-    label: '悟空号'
-  },
-  {
-    prop: 'sex',
+    prop: 'gender',
     label: '性别',
     width: 60,
     formatter(row: any) {
-      return row.sex === 1 ? '男' : '女';
+      return row.gender === 1 ? '男' : '女';
     }
   },
   {
-    prop: 'register_time',
+    prop: 'createTime',
     label: '注册时间',
-    width: 170
+    width: 170,
+    formatter(row: any) {
+      var date = new Date(row.createTime);
+      var Y = date.getFullYear() + '-';
+      var M = (date.getMonth() + 1 < 10 ? '0' + (date.getMonth()+1) : date.getMonth()+1) + '-';
+      var D = date.getDate() + ' ';
+      var h = date.getHours() + ':';
+      var m = date.getMinutes() + ':';
+      var s = date.getSeconds();
+      return Y + M + D + h + m + s;
+    }
   },
-  {
-    prop: 'closure_time',
-    label: '封禁日期',
-    width: 150
-  },
+  // {
+  //   prop: 'closure_time',
+  //   label: '封禁日期',
+  //   width: 150
+  // },
   {
     prop: 'operation',
     label: '操作',
@@ -162,8 +168,8 @@ const getUserList = () => {
   loadTable.value = true;
   userDisablelistGet(queryFrom).then((res: any) => {
     loadTable.value = false;
-    tableData.value = res.list;
-    total.value = res.count;
+    tableData.value = res.data.users;
+    total.value = res.data.total;
   });
 };
 
@@ -181,7 +187,7 @@ const onCurrentChange = (current: number) => {
 
 // 解禁
 const onUseLiftban = (item: any) => {
-  ElMessageBox.confirm(`确定要解禁用户${item.name} 吗`, `解禁用户`, {
+  ElMessageBox.confirm(`确定要解禁用户${item.nickname} 吗`, `解禁用户`, {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     closeOnClickModal: false,
@@ -189,10 +195,9 @@ const onUseLiftban = (item: any) => {
   })
     .then(() => {
       const fromLiftban = {
-        uid: item.uid,
-        status: 1
+        userIDs: [item.userID]
       };
-      userLiftbanPut(fromLiftban)
+      userBlockDel(fromLiftban)
         .then((_res: any) => {
           getUserList();
           ElMessage({
@@ -201,9 +206,7 @@ const onUseLiftban = (item: any) => {
           });
         })
         .catch(err => {
-          if (err.status == 400) {
-            ElMessage.error(err.msg);
-          }
+          ElMessage.error(err.msg);
         });
     })
     .catch(() => {
