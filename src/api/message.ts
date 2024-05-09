@@ -1,11 +1,20 @@
-import request from '@/utils/axios';
+import request from '@/utils/axios2';
 
 // 消息记录
 export function messageGet(params: any) {
   return request({
-    url: '/manager/message',
-    method: 'get',
-    params
+    url: '/msg/search_msg',
+    method: 'post',
+    data: params
+  });
+}
+
+// 删除消息
+export function messageRevoke(data: any) {
+  return request({
+    url: '/msg/revoke_msg',
+    method: 'post',
+    data: data
   });
 }
 

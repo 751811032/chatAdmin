@@ -39,8 +39,8 @@
       <div class="bd-card-footer pl-12px pr-12px mb-12px flex items-center justify-between">
         <div></div>
         <el-pagination
-          v-model:current-page="queryFrom.page_index"
-          v-model:page-size="queryFrom.page_size"
+          v-model:current-page="queryFrom.pagination.pageNumber"
+          v-model:page-size="queryFrom.pagination.showNumber"
           :page-sizes="[15, 20, 30, 50, 100]"
           :background="true"
           layout="total, sizes, prev, pager, next, jumper"
@@ -62,27 +62,27 @@ meta:
 </route>
 
 <script lang="tsx" setup>
-import { ElButton, ElAvatar } from 'element-plus';
+import { ElButton, ElAvatar, ElMessageBox, ElMessage } from "element-plus";
 import { BU_DOU_CONFIG } from '@/config';
 // API 接口
-import { messageGet } from '@/api/message';
+import { messageGet, messageRevoke } from "@/api/message";
 /**
  * 表格
  */
 const column = reactive<Column.ColumnOptions[]>([
   {
-    prop: 'sender_name',
+    prop: 'senderNickname',
     label: '发送者名字',
     fixed: 'left',
-    width: 140
+    width: 100
   },
   {
-    prop: 'sender',
+    prop: 'sendID',
     label: '发送者ID',
     width: 120
   },
   {
-    prop: 'sender_avatar',
+    prop: 'senderFaceURL',
     label: '发送者头像',
     align: 'center',
     width: 100,
@@ -99,67 +99,45 @@ const column = reactive<Column.ColumnOptions[]>([
     }
   },
   {
-    prop: 'receiver',
+    prop: 'recvID',
     label: '接受者ID',
-    width: 300
-  },
-  {
-    prop: 'receiver_name',
-    label: '接受者名字',
-    width: 180
-  },
-  {
-    prop: 'receiver_avatar',
-    label: '接受者头像',
-    align: 'center',
-    width: 100,
-    render: (scope: any) => {
-      let img_url = '';
-      if (scope.row['receiver']) {
-        const msgURL = scope.row['receiver_channel_type'] == 1 ? 'users' : 'groups';
-        img_url = `${BU_DOU_CONFIG.APP_URL}${msgURL}/${scope.row['receiver']}/avatar`;
-      }
-      return (
-        <ElAvatar src={img_url} size={54}>
-          {scope.row['receiver_name']}
-        </ElAvatar>
-      );
-    }
-  },
-  {
-    prop: 'register_time',
-    label: '聊天类型',
-    width: 90,
-    formatter(row: any) {
-      return row['receiver_channel_type'] === 1 ? '单聊' : '群聊';
-    }
-  },
-  {
-    prop: 'handler_uid',
-    label: '操作者ID',
-    width: 140
-  },
-  {
-    prop: 'handler_name',
-    label: '操作者名字',
     width: 120
   },
   {
-    prop: 'handler_uid',
-    label: '操作者头像',
-    align: 'center',
-    width: 100,
-    render: (scope: any) => {
-      let img_url = '';
-      if (scope.row['handler_uid']) {
-        img_url = `${BU_DOU_CONFIG.APP_URL}users/${scope.row['handler_uid']}/avatar`;
-      }
-      return (
-        <ElAvatar src={img_url} size={54}>
-          {scope.row['handler_name']}
-        </ElAvatar>
-      );
+    prop: 'recvNickname',
+    label: '接受者名字',
+    width: 100
+  },
+  // {
+  //   prop: 'receiver_avatar',
+  //   label: '接受者头像',
+  //   align: 'center',
+  //   width: 100,
+  //   render: (scope: any) => {
+  //     let img_url = '';
+  //     if (scope.row['receiver']) {
+  //       const msgURL = scope.row['receiver_channel_type'] == 1 ? 'users' : 'groups';
+  //       img_url = `${BU_DOU_CONFIG.APP_URL}${msgURL}/${scope.row['receiver']}/avatar`;
+  //     }
+  //     return (
+  //       <ElAvatar src={img_url} size={54}>
+  //         {scope.row['receiver_name']}
+  //       </ElAvatar>
+  //     );
+  //   }
+  // },
+  {
+    prop: 'sessionType',
+    label: '聊天类型',
+    width: 90,
+    formatter(row: any) {
+      return row['sessionType'] === 1 ? '单聊' : '群聊';
     }
+  },
+  {
+    prop: 'contentType',
+    label: '聊天类型',
+    width: 90
   },
   {
     prop: 'content',
@@ -167,9 +145,39 @@ const column = reactive<Column.ColumnOptions[]>([
     width: 260
   },
   {
-    prop: 'created_at',
+    prop: 'createTime',
     label: '消息发送时间',
-    width: 170
+    width: 170,
+    formatter(row: any) {
+      var date = new Date(row.createTime);
+      var Y = date.getFullYear() + '-';
+      var M = (date.getMonth() + 1 < 10 ? '0' + (date.getMonth()+1) : date.getMonth()+1) + '-';
+      var D = date.getDate() + ' ';
+      var h = date.getHours() + ':';
+      var m = date.getMinutes() + ':';
+      var s = date.getSeconds();
+      return Y + M + D + h + m + s;
+    }
+  },
+  {
+    prop: 'operation',
+    label: '操作',
+    align: 'center',
+    fixed: 'right',
+    width: 100,
+    render: (scope: any) => {
+      return (
+        <ElSpace>
+          {scope.row['contentType'] === 2101 ? (
+            <ElButton type="danger" onClick={() => onDel(scope.row)}>
+              撤回
+            </ElButton>
+          ) : (
+            ''
+          )}
+        </ElSpace>
+      );
+    }
   }
 ]);
 const tableData = ref<any[]>([]);
@@ -179,28 +187,34 @@ const total = ref(0);
 
 // 查询
 const queryFrom = reactive({
-  page_size: 15,
-  page_index: 1
+  msgType: 0,
+  recvID: '',
+  sendID: '',
+  sessionType: 1,
+  pagination: {
+    pageNumber: 1,
+    showNumber: 10
+  }
 });
 
 const getTableList = () => {
   loadTable.value = true;
   messageGet(queryFrom).then((res: any) => {
     loadTable.value = false;
-    tableData.value = res.list;
-    total.value = res.count;
+    tableData.value = res.data.chatLogs;
+    total.value = res.data.chatLogsNum;
   });
 };
 
 // 分页page-size
 const onSizeChange = (size: number) => {
-  queryFrom.page_size = size;
+  queryFrom.pagination.showNumber = size;
   getTableList();
 };
 
 // 分页page-size
 const onCurrentChange = (current: number) => {
-  queryFrom.page_index = current;
+  queryFrom.pagination.pageNumber = current;
   getTableList();
 };
 
@@ -214,6 +228,38 @@ const onSand = () => {
 const okSand = () => {
   getTableList();
 };
+// 删除消息
+const msgDel = (item: any) => {
+  const formData = {
+    conversationID: 'si_' + item.sendID + '_' + item.recvID,
+    seq: item.seq,
+    userID: item.sendID
+  };
+  messageRevoke(formData).then((res: any) => {
+    getTableList();
+    ElMessage({ type: 'success', message: '删除成功！' });
+  });
+};
+
+// 删除
+const onDel = (item: any) => {
+  ElMessageBox.confirm('确定，是否删除此消息?', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    closeOnClickModal: false,
+    type: 'warning'
+  })
+    .then(() => {
+      msgDel(item);
+    })
+    .catch(() => {
+      ElMessage({
+        type: 'info',
+        message: '取消成功！'
+      });
+    });
+};
+
 // 初始化
 onMounted(() => {
   getTableList();
